@@ -34,5 +34,6 @@
   "bugs": {
     "url": "https://github.com/isaacs/npm-fullfat-registry/issues"
   },
-  "homepage": "https://github.com/isaacs/npm-fullfat-registry"
+  "homepage": "https://github.com/isaacs/npm-fullfat-registry",
+  "bin": "bin/fullfat.js"
 }
