@@ -34,7 +34,7 @@ function FullFat(conf) {
   this.fat = this.fat.replace(/\/+$/, '')
 
   this.ua = conf.ua || ua
-  this.inactivity_ms = conf.inactivity_ms //|| 1000 * 60 * 60
+  this.inactivity_ms = conf.inactivity_ms || 1000 * 60 * 60
   this.seqFile = conf.seq_file
   this.writingSeq = false
   this.since = 0
