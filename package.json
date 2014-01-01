@@ -1,0 +1,38 @@
+{
+  "name": "npm-fullfat-registry",
+  "version": "0.0.0",
+  "description": "Make a registry with all attachments intact",
+  "main": "fullfat.js",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {
+    "follow": "~0.10.4",
+    "mkdirp": "~0.3.5",
+    "once": "~1.3.0",
+    "rimraf": "~2.2.5",
+    "dashdash": "~1.4.0"
+  },
+  "devDependencies": {
+    "tap": "~0.4.6",
+    "st": "~0.2.3"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/isaacs/npm-fullfat-registry"
+  },
+  "keywords": [
+    "npm",
+    "registry",
+    "attachments"
+  ],
+  "author": "Isaac Z. Schlueter <i@izs.me> (http://blog.izs.me/)",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/isaacs/npm-fullfat-registry/issues"
+  },
+  "homepage": "https://github.com/isaacs/npm-fullfat-registry"
+}
