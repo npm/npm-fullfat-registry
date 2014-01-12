@@ -43,6 +43,8 @@ if (opts.help)
   return usage(true)
 
 function usage(ok) {
+  console.log('npm-fullfat-registry - Put attachments back into the couch')
+  console.log('Usage: npm-fullfat-registry [args]\n')
   console.log(parser.help())
   process.exit(ok ? 0 : 1)
 }
