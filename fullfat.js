@@ -40,6 +40,8 @@ function FullFat(conf) {
   this.since = 0
   this.follow = null
 
+  this.whitelist = conf.whitelist || [ /.*/ ]
+
   this.tmp = conf.tmp
   if (!this.tmp) {
     var rand = crypto.randomBytes(6).toString('hex')
@@ -236,6 +238,23 @@ FullFat.prototype.merge = function(s, f) {
   if (!s.versions)
     return this.follow.resume()
 
+  // Only fetch attachments if it's on the list.
+  var pass = true
+  if (this.whitelist.length) {
+    pass = false
+    for (var i = 0; !pass && i < this.whitelist.length; i++) {
+      var w = this.whitelist[i]
+      if (typeof w === 'string')
+        pass = w === s.name
+      else
+        pass = w.exec(s.name)
+    }
+    if (!pass) {
+      f._attachments = {}
+      return this.fetchAll(f, [], [])
+    }
+  }
+
   var need = []
   var changed = false
   for (var v in s.versions) {
@@ -244,9 +263,10 @@ FullFat.prototype.merge = function(s, f) {
 
     if (!f.versions[v] || f.versions[v].dist.shasum !== ver.dist.shasum) {
       f.versions[v] = s.versions[v]
-      need.push(v)
+      if (pass)
+        need.push(v)
       changed = true
-    } else if (!f._attachments[att]) {
+    } else if (pass && !f._attachments[att]) {
       need.push(v)
       changed = true
     }
@@ -254,7 +274,7 @@ FullFat.prototype.merge = function(s, f) {
 
   for (var a in f._attachments) {
     var v = a.substr(f.name + 1).replace(/\.tgz$/, '')
-    if (!f.versions[v]) {
+    if (!pass || !f.versions[v]) {
       delete f._attachments[a]
       changed = true
     }
