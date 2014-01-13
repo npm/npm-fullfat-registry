@@ -434,18 +434,30 @@ FullFat.prototype.fetchOne = function(f, need, did, v) {
 FullFat.prototype.onattres = function(f, need, did, v, res) {
   var att = f.versions[v].dist.tarball
   var sum = f.versions[v].dist.shasum
-  // if the attachment can't be found, then that's pretty serious
-  if (res.statusCode !== 200) {
-    var er = new Error('HTTP fetch failure')
-    er.doc = f
-    er.version = v
-    er.url = att
-    er.statusCode = res.statusCode
-    er.headers = res.headers
-    return this.emit('error', er)
+  var filename = f.name + '-' + v + '.tgz'
+  var file = path.join(this.tmp, f.name, filename)
+
+  function skip() {
+    rimraf(file, function() {})
+    delete f.versions[v]
+    if (f._attachments)
+      delete f._attachments[file]
+    need.splice(need.indexOf(v), 1)
+    maybeDone()
   }
 
-  var file = path.join(this.tmp, f.name, f.name + '-' + v + '.tgz')
+  var maybeDone = function maybeDone() {
+    if (need.length === did.length)
+      this.put(f, did)
+  }.bind(this)
+
+  // if the attachment can't be found, then skip that version
+  // it's uninstallable as of right now, and may or may not get
+  // fixed in a future update
+  if (res.statusCode !== 200) {
+    return skip()
+  }
+
   var fstr = fs.createWriteStream(file)
 
   // check the shasum while we're at it
@@ -489,9 +501,7 @@ FullFat.prototype.onattres = function(f, need, did, v, res) {
     if (errState) {
       // something didn't work, but the error was squashed
       // take that as a signal to just delete this version,
-      // and delete the file.
-      delete f.versions[v]
-      rimraf(file)
+      return skip()
     } else {
       // it worked!  change the dist.tarball url to point to the
       // registry where this is being stored.  It'll be rewritten by
@@ -514,8 +524,7 @@ FullFat.prototype.onattres = function(f, need, did, v, res) {
       type: res.headers['content-type']
     })
 
-    if (need.length === did.length)
-      this.put(f, did)
+    maybeDone()
   }.bind(this))
 }
 
