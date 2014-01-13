@@ -91,8 +91,8 @@ FullFat.prototype.start = function() {
   }, this.onchange.bind(this))
 }
 
-FullFat.prototype.writeSeq = function(seq) {
-  this.since = seq
+FullFat.prototype.writeSeq = function() {
+  var seq = this.since
   if (this.seqFile && !this.writingSeq) {
     this.writingSeq = true
     fs.writeFile(this.seqFile, seq + '\n', 'ascii', function() {
@@ -105,18 +105,22 @@ FullFat.prototype.onchange = function(er, change) {
   if (er)
     return this.emit('error', er)
 
-  this.follow.pause()
+  this.pause()
+  this.since = change.seq
 
   this.emit('change', change)
 
-  this.writeSeq(change.seq)
-
   if (change.deleted)
-    return this.delete(change.id)
+    this.delete(change.id)
 
-  if (change.id.match(/^_design\//))
-    return this.putDesign(change.doc)
+  else if (change.id.match(/^_design\//))
+    this.putDesign(change.doc)
 
+  else
+    this.putDoc(change)
+}
+
+FullFat.prototype.putDoc = function(change) {
   var s = change.doc
   var opt = url.parse(this.fat + '/' + s.name)
   opt.method = 'GET'
@@ -131,6 +135,7 @@ FullFat.prototype.onchange = function(er, change) {
 }
 
 FullFat.prototype.putDesign = function(doc) {
+  this.pause()
   var opt = url.parse(this.fat + '/' + doc._id + '?new_edits=false')
   var b = new Buffer(JSON.stringify(doc), 'utf8')
   opt.method = 'PUT'
@@ -153,11 +158,13 @@ FullFat.prototype.onputdesign = function(doc, res) {
     if (er)
       return this.emit('error', er)
     this.emit('putDesign', doc, data)
-    this.follow.resume()
+    this.resume()
   }.bind(this))
 }
 
 FullFat.prototype.delete = function(name) {
+  this.pause()
+
   var opt = url.parse(this.fat + '/' + name)
   opt.headers = {
     'user-agent': this.ua,
@@ -170,7 +177,7 @@ FullFat.prototype.delete = function(name) {
     // already gone?  totally fine.  move on, nothing to delete here.
     if (res.statusCode === 404) {
       req.abort()
-      return this.follow.resume()
+      return this.resume()
     }
 
     var rev = res.headers.etag.replace(/^"|"$/g, '')
@@ -186,7 +193,7 @@ FullFat.prototype.delete = function(name) {
           return this.emit('error', er)
         data.name = name
         this.emit('delete', data)
-        this.follow.resume()
+        this.resume()
       }.bind(this))
     }.bind(this))
     req.on('error', this.emit.bind(this, 'error'))
@@ -216,7 +223,7 @@ FullFat.prototype.onfatget = function(s, res) {
 
 FullFat.prototype.merge = function(s, f) {
   if (!s.versions)
-    return this.follow.resume()
+    return this.resume()
 
   // Only fetch attachments if it's on the list.
   var pass = true
@@ -272,7 +279,7 @@ FullFat.prototype.merge = function(s, f) {
   }
 
   if (!changed)
-    this.follow.resume()
+    this.resume()
   else
     this.fetchAll(f, need, [])
 }
@@ -389,7 +396,7 @@ FullFat.prototype.onputres = function(f, req, res) {
       return this.emit('error', er)
     this.emit('put', f, data)
     rimraf(this.tmp + '/' + f.name, function() {
-      this.follow.resume()
+      this.resume()
     }.bind(this))
   }.bind(this))
 }
@@ -524,6 +531,7 @@ FullFat.prototype.pause = function() {
 }
 
 FullFat.prototype.resume = function() {
+  this.writeSeq()
   if (this.follow)
     this.follow.resume()
 }
