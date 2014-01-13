@@ -60,20 +60,16 @@ ff.on('start', function() {
   console.log('START %s pid=%d', ff.ua, process.pid)
 })
 
-ff.on('change', function(change) {
-  console.log('Received Change', change.id)
-})
-
 ff.on('putDesign', function(doc, result) {
-  console.log('PUT %s %j', doc._id, result)
+  console.log('PUT %s', doc._id)
 })
 
 ff.on('put', function(doc, result) {
-  console.log('PUT %s %j', doc._id, result)
+  console.log('PUT %s', doc._id)
 })
 
 ff.on('delete', function(data) {
-  console.log('DELETE %s %j', data.name, data)
+  console.log('DELETE %s', data.name)
 })
 
 ff.on('error', function(er) {
