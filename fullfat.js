@@ -70,7 +70,7 @@ FullFat.prototype.gotSeq = function(er, data) {
   data = +data || 0
   this.since = data
   this.start()
-}.bind(this)
+}
 
 FullFat.prototype.start = function() {
   if (this.follow)
