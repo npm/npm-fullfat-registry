@@ -31,8 +31,14 @@ function FullFat(conf) {
   this.skim = url.parse(conf.skim).href
   this.skim = this.skim.replace(/\/+$/, '')
 
-  this.fat = url.parse(conf.fat).href
+  var f = url.parse(conf.fat)
+  this.fat = f.href
   this.fat = this.fat.replace(/\/+$/, '')
+  delete f.auth
+  this.publicFat = url.format(f)
+  this.publicFat = this.publicFat.replace(/\/+$/, '')
+
+
 
   this.ua = conf.ua || ua
   this.inactivity_ms = conf.inactivity_ms || 1000 * 60 * 60
@@ -356,7 +362,7 @@ FullFat.prototype.put = function(f, did) {
 }
 
 FullFat.prototype.putAttachments = function(req, f, boundaries, send) {
-  // send is the ordered list of attachment objects
+  // send is the ordered list of [[name, attachment object],...]
   var b = boundaries.shift()
   var ns = send.shift()
 
@@ -485,7 +491,7 @@ FullFat.prototype.onattres = function(f, need, did, v, res) {
       // registry where this is being stored.  It'll be rewritten by
       // the _show/pkg function when going through the rewrites, anyway,
       // but this url will work if the couch itself is accessible.
-      var newatt = this.fat + f.name + '/' + f.name + '-' + v + '.tgz'
+      var newatt = this.publicFat + '/' + f.name + '/' + f.name + '-' + v + '.tgz'
       f.versions[v].dist.tarball = newatt
     }
 
