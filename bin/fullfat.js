@@ -7,7 +7,7 @@ var parser = dashdash.createParser({
   options: [
     { names: [ 'fat', 'f' ],
       type: 'string',
-      help: 'The database that has attachments. Required.'
+      help: 'The database that has attachments. Required.',
       helpArg: 'URL' },
     { names: [ 'skim', 's' ],
       type: 'string',
