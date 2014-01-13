@@ -380,14 +380,13 @@ FullFat.prototype.putAttachments = function(req, f, boundaries, send) {
   }
 
   var name = ns[0]
-  var s = ns[1]
   req.write(b, 'ascii')
   var file = path.join(this.tmp, f.name, name)
   var fstr = fs.createReadStream(file)
 
-  fstr.on('close', this.putAttachments.bind(this, req, f, boundaries, send))
+  fstr.on('end', this.putAttachments.bind(this, req, f, boundaries, send))
   fstr.on('error', this.emit.bind(this, 'error'))
-  fstr.pipe(req)
+  fstr.pipe(req, { end: false })
 }
 
 FullFat.prototype.onputres = function(f, req, res) {
