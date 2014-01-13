@@ -14,6 +14,7 @@ var stream = require('stream')
 var util = require('util')
 var crypto = require('crypto')
 var once = require('once')
+var parse = require('parse-json-response')
 
 var version = require('./package.json').version
 var ua = 'npm FullFat/' + version + ' node/' + process.version
@@ -142,7 +143,7 @@ FullFat.prototype.putDesign = function(doc) {
 }
 
 FullFat.prototype.onputdesign = function(doc, res) {
-  gatherJsonRes(res, function(er, data) {
+  parse(res, function(er, data) {
     if (er)
       return this.emit('error', er)
     this.emit('putDesign', doc, data)
@@ -174,7 +175,7 @@ FullFat.prototype.delete = function(name) {
     }
     opt.method = 'DELETE'
     req = httpModule.request(opt, function(res) {
-      gatherJsonRes(res, function(er, data) {
+      parse(res, function(er, data) {
         if (er)
           return this.emit('error', er)
         data.name = name
@@ -198,39 +199,12 @@ FullFat.prototype.onfatget = function(s, res) {
     return this.merge(s, f)
   }
 
-  gatherJsonRes(res, function(er, f) {
+  parse(res, function(er, f) {
     if (er)
       this.emit('error', er)
     else
       this.merge(s, f)
   }.bind(this))
-}
-
-function gatherJsonRes (res, cb) {
-  cb = once(cb)
-
-  var json = ''
-  res.setEncoding('utf8')
-  res.on('data', function(c) {
-    json += c
-  })
-
-  res.on('error', cb)
-
-  res.on('end', function() {
-    try {
-      var data = JSON.parse(json)
-    } catch (er) {
-      var e = new Error('Invalid JSON\n' + json + '\n' + er.stack + '\n')
-      return cb(e)
-    }
-    if (res.statusCode > 299) {
-      var er = new Error(data.reason || json)
-      er.response = data
-      er.statusCode = res.statusCode
-    }
-    cb(er, data)
-  })
 }
 
 
@@ -404,7 +378,7 @@ FullFat.prototype.putAttachments = function(req, f, boundaries, send) {
 }
 
 FullFat.prototype.onputres = function(f, req, res) {
-  gatherJsonRes(res, function (er, data) {
+  parse(res, function (er, data) {
     if (er)
       return this.emit('error', er)
     this.emit('put', f, data)
