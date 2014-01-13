@@ -38,7 +38,11 @@ function FullFat(conf) {
   this.publicFat = url.format(f)
   this.publicFat = this.publicFat.replace(/\/+$/, '')
 
-
+  this.registry = null
+  if (conf.registry) {
+    this.registry = url.parse(conf.registry).href
+    this.registry = this.registry.replace(/\/+$/, '')
+  }
 
   this.ua = conf.ua || ua
   this.inactivity_ms = conf.inactivity_ms || 1000 * 60 * 60
@@ -418,6 +422,11 @@ FullFat.prototype.fetchAll = function(f, need, did) {
 
 FullFat.prototype.fetchOne = function(f, need, did, v) {
   var r = url.parse(f.versions[v].dist.tarball)
+  if (this.registry) {
+    var p = '/' + f.name + '/-/' + path.basename(r.pathname)
+    r = url.parse(this.registry + p)
+  }
+
   var httpModule = r.protocol === 'https:' ? https : http
   r.method = 'GET'
   r.headers = {
