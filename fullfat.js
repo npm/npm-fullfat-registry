@@ -476,18 +476,8 @@ FullFat.prototype.onattres = function(f, need, did, v, res) {
 
   sha.on('data', function(c) {
     c = c.toString('hex')
-    if (c !== sum) {
-      var er = new Error('Shasum Mismatch')
-      er.expect = sum
-      er.actual = c
-      er.doc = f
-      er.version = v
-      er.url = att
-      er.headers = res.headers
-      return this.emit('error', errState = errState || er)
-    } else {
+    if (c === sum)
       shaOk = true
-    }
   }.bind(this))
 
   if (!res.headers['content-length']) {
@@ -507,7 +497,7 @@ FullFat.prototype.onattres = function(f, need, did, v, res) {
   }.bind(this))
 
   fstr.on('close', function() {
-    if (errState) {
+    if (errState || !shaOk) {
       // something didn't work, but the error was squashed
       // take that as a signal to just delete this version,
       return skip()
