@@ -18,6 +18,7 @@ var parse = require('parse-json-response')
 
 var version = require('./package.json').version
 var ua = 'npm FullFat/' + version + ' node/' + process.version
+var readmeTrim = require('npm-registry-readme-trim')
 
 util.inherits(FullFat, EE)
 
@@ -281,6 +282,8 @@ FullFat.prototype.merge = function(s, f) {
       }
     }
   }
+
+  changed = readmeTrim(f) || changed
 
   if (!changed)
     this.resume()
