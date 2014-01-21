@@ -97,8 +97,8 @@ FullFat.prototype.start = function() {
 }
 
 FullFat.prototype.writeSeq = function() {
-  var seq = this.since
-  if (this.seqFile && !this.writingSeq) {
+  var seq = +this.since
+  if (this.seqFile && !this.writingSeq && seq > 0) {
     this.writingSeq = true
     fs.writeFile(this.seqFile, seq + '\n', 'ascii', function() {
       this.writingSeq = false
