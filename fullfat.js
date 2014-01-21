@@ -230,6 +230,8 @@ FullFat.prototype.merge = function(s, f) {
   if (!s.versions)
     return this.resume()
 
+  f._attachments = f._attachments || {}
+
   // Only fetch attachments if it's on the list.
   var pass = true
   if (this.whitelist.length) {
