@@ -62,21 +62,15 @@ try {
 
 ff.on('start', function() {
   console.log('START %s pid=%d', ff.ua, process.pid)
-})
-
-ff.on('putDesign', function(doc, result) {
+}).on('change', function(change) {
+  console.log('processing %s', change.id)
+}).on('putDesign', function(doc, result) {
   console.log('PUT %s', doc._id)
-})
-
-ff.on('put', function(doc, result) {
+}).on('put', function(doc, result) {
   console.log('PUT %s', doc._id)
-})
-
-ff.on('delete', function(data) {
+}).on('delete', function(data) {
   console.log('DELETE %s', data.name)
-})
-
-ff.on('error', function(er) {
+}).on('error', function(er) {
   console.log('ERROR', er)
   throw er
 })
