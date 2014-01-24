@@ -63,7 +63,7 @@ try {
 ff.on('start', function() {
   console.log('START %s pid=%d', ff.ua, process.pid)
 }).on('change', function(change) {
-  console.log('processing %s', change.id)
+  console.log('%d: %s', change.seq, change.id)
 }).on('putDesign', function(doc, result) {
   console.log('PUT %s', doc._id)
 }).on('put', function(doc, result) {

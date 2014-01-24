@@ -101,6 +101,7 @@ FullFat.prototype.writeSeq = function() {
   if (this.seqFile && !this.writingSeq && seq > 0) {
     this.writingSeq = true
     fs.writeFile(this.seqFile, seq + '\n', 'ascii', function() {
+      this.emit('sequence', seq)
       this.writingSeq = false
     }.bind(this))
   }
@@ -227,6 +228,7 @@ FullFat.prototype.onfatget = function(s, res) {
 
 
 FullFat.prototype.merge = function(s, f) {
+  // if no versions in the skim record, then nothing to fetch
   if (!s.versions)
     return this.resume()
 
