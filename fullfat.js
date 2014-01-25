@@ -49,6 +49,7 @@ function FullFat(conf) {
   this.inactivity_ms = conf.inactivity_ms || 1000 * 60 * 60
   this.seqFile = conf.seq_file
   this.writingSeq = false
+  this.error = false
   this.since = 0
   this.follow = null
 
@@ -94,15 +95,29 @@ FullFat.prototype.start = function() {
     inactivity_ms: this.inactivity_ms,
     include_docs: true
   }, this.onchange.bind(this))
+  this.follow.on('error', this.emit.bind(this, 'error'))
+}
+
+FullFat.prototype._emit = function(ev, arg) {
+  // Don't emit errors while writing seq
+  if (ev === 'error' && this.writingSeq) {
+    this.error = arg
+  } else {
+    EventEmitter.prototype.emit.apply(this, arguments)
+  }
 }
 
 FullFat.prototype.writeSeq = function() {
   var seq = +this.since
   if (this.seqFile && !this.writingSeq && seq > 0) {
     this.writingSeq = true
-    fs.writeFile(this.seqFile, seq + '\n', 'ascii', function() {
-      this.emit('sequence', seq)
+    fs.writeFile(this.seqFile, seq + '\n', 'ascii', function(writeEr) {
       this.writingSeq = false
+      var er = this.error
+      if (er)
+        this.emit('error', er)
+      else if (!writeEr)
+        this.emit('sequence', seq)
     }.bind(this))
   }
 }
