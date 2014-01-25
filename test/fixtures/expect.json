@@ -20,8 +20,6 @@
         "email": "rok@kowalski.gd"
       },
       "license": "BSD-2-Clause",
-      "readme": "# test-package\n",
-      "readmeFilename": "README.md",
       "_id": "test-package@0.0.0",
       "dist": {
         "shasum": "b0d32b6c45c259c578ba2003762b205131bdfbd1",
@@ -43,6 +41,7 @@
     }
   },
   "readme": "# test-package\n",
+  "readmeFilename": "README.md",
   "maintainers": [
     {
       "name": "robertkowalski",

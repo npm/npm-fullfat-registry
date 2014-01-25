@@ -73,4 +73,6 @@ ff.on('start', function() {
 }).on('error', function(er) {
   console.log('ERROR', er)
   throw er
+}).on('download', function(a) {
+  console.log('-> %s', a.name)
 })

@@ -468,16 +468,22 @@ FullFat.prototype.onattres = function(f, need, did, v, res) {
   var filename = f.name + '-' + v + '.tgz'
   var file = path.join(this.tmp, f.name, filename)
 
+  // TODO: If the file already exists, get its size.
+  // If the size matches content-length, get the md5
+  // If the md5 matches content-md5, then don't bother downloading!
+
   function skip() {
     rimraf(file, function() {})
     delete f.versions[v]
     if (f._attachments)
       delete f._attachments[file]
     need.splice(need.indexOf(v), 1)
-    maybeDone()
+    maybeDone(null)
   }
 
-  var maybeDone = function maybeDone() {
+  var maybeDone = function maybeDone(a) {
+    if (a)
+      this.emit('download', a)
     if (need.length === did.length)
       this.put(f, did)
   }.bind(this)
@@ -538,14 +544,15 @@ FullFat.prototype.onattres = function(f, need, did, v, res) {
       var cl = counter.count
     }
 
-    did.push({
+    var a = {
       version: v,
       name: path.basename(file),
       length: cl,
       type: res.headers['content-type']
-    })
+    }
+    did.push(a)
+    maybeDone(a)
 
-    maybeDone()
   }.bind(this))
 }
 
