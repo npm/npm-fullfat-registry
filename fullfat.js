@@ -58,7 +58,7 @@ function FullFat(conf) {
   this.tmp = conf.tmp
   if (!this.tmp) {
     var rand = crypto.randomBytes(6).toString('hex')
-    this.tmp = path.resolve('npm-fullfat-tmp-' + process.pid)
+    this.tmp = path.resolve('npm-fullfat-tmp-' + process.pid + '-' + rand)
   }
 
   this.boundary = 'npmFullFat-' + crypto.randomBytes(6).toString('base64')
