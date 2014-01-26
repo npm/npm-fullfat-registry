@@ -1,6 +1,4 @@
 var follow = require('follow')
-var http = require('http')
-var https = require('https')
 var fs = require('fs')
 var EE = require('events').EventEmitter
 var util = require('util')
@@ -15,6 +13,7 @@ var util = require('util')
 var crypto = require('crypto')
 var once = require('once')
 var parse = require('parse-json-response')
+var hh = require('http-https')
 
 var version = require('./package.json').version
 var ua = 'npm FullFat/' + version + ' node/' + process.version
@@ -149,8 +148,7 @@ FullFat.prototype.putDoc = function(change) {
     'user-agent': this.ua,
     'connection': 'close'
   }
-  var httpModule = opt.protocol === 'https:' ? https : http
-  var req = httpModule.get(opt)
+  var req = hh.get(opt)
   req.on('error', this.emit.bind(this, 'error'))
   req.on('response', this.onfatget.bind(this, s))
 }
@@ -167,8 +165,7 @@ FullFat.prototype.putDesign = function(doc) {
     'connection': 'close'
   }
 
-  var httpModule = opt.protocol === 'https:' ? https : http
-  var req = httpModule.request(opt)
+  var req = hh.request(opt)
   req.on('response', this.onputdesign.bind(this, doc))
   req.on('error', this.emit.bind(this, 'error'))
   req.end(b)
@@ -191,10 +188,9 @@ FullFat.prototype.delete = function(name) {
     'user-agent': this.ua,
     'connection': 'close'
   }
-  var httpModule = opt.protocol === 'https:' ? https : http
   opt.method = 'HEAD'
 
-  var req = httpModule.request(opt, function(res) {
+  var req = hh.request(opt, function(res) {
     // already gone?  totally fine.  move on, nothing to delete here.
     if (res.statusCode === 404) {
       req.abort()
@@ -208,7 +204,7 @@ FullFat.prototype.delete = function(name) {
       'connection': 'close'
     }
     opt.method = 'DELETE'
-    req = httpModule.request(opt, function(res) {
+    req = hh.request(opt, function(res) {
       parse(res, function(er, data) {
         if (er)
           return this.emit('error', er)
@@ -385,8 +381,7 @@ FullFat.prototype.put = function(f, did) {
 
   p.headers['content-length'] = attSize + bSize + doc.length
 
-  var httpModule = p.protocol === 'https:' ? https : http
-  var req = httpModule.request(p)
+  var req = hh.request(p)
   req.on('error', this.emit.bind(this, 'error'))
   req.write(b, 'ascii')
   req.write(doc)
@@ -449,14 +444,13 @@ FullFat.prototype.fetchOne = function(f, need, did, v) {
     r = url.parse(this.registry + p)
   }
 
-  var httpModule = r.protocol === 'https:' ? https : http
   r.method = 'GET'
   r.headers = {
     'user-agent': this.ua,
     'connection': 'close'
   }
 
-  var req = httpModule.request(r)
+  var req = hh.request(r)
   req.on('error', this.emit.bind(this, 'error'))
   req.on('response', this.onattres.bind(this, f, need, did, v))
   req.end()
