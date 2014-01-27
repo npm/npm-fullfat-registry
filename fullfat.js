@@ -231,14 +231,11 @@ FullFat.prototype.delete = function(change) {
 
 FullFat.prototype.ondeletehead = function(change, res) {
   // already gone?  totally fine.  move on, nothing to delete here.
-  if (er && er.statusCode === 404)
+  if (res.statusCode === 404)
     return this.afterDelete(change)
 
-  if (er)
-    return this.emit('error', er)
-
   var rev = res.headers.etag.replace(/^"|"$/g, '')
-  opt = url.parse(this.fat + '/' + name + '?rev=' + rev)
+  opt = url.parse(this.fat + '/' + change.id + '?rev=' + rev)
   opt.headers = {
     'user-agent': this.ua,
     'connection': 'close'
@@ -306,7 +303,8 @@ FullFat.prototype.merge = function(change) {
   var need = []
   var changed = false
   for (var v in s.versions) {
-    var att = s.name + '-' + v + '.tgz'
+    var tgz = s.versions[v].dist.tarball
+    var att = path.basename(url.parse(tgz).pathname)
     var ver = s.versions[v]
 
     if (!f.versions[v] || f.versions[v].dist.shasum !== ver.dist.shasum) {
@@ -318,6 +316,14 @@ FullFat.prototype.merge = function(change) {
       changed = true
     }
   }
+
+  // remove any versions that s removes
+  // Versions without attachments will be deleted later, if unfound.
+  for (var v in f.versions) {
+    if (!s.versions[v])
+      delete f.versions[v]
+  }
+
 
   for (var a in f._attachments) {
     var found = false
@@ -356,6 +362,7 @@ FullFat.prototype.merge = function(change) {
 
 FullFat.prototype.put = function(change, did) {
   var f = change.fat
+  change.did = did
   // at this point, all the attachments have been fetched into
   // {this.tmp}/{change.id}/{attachment basename}
   // make a multipart PUT with all of the missing ones set to
@@ -462,7 +469,8 @@ FullFat.prototype.putAttachments = function(req, change, boundaries, send) {
 FullFat.prototype.onputres = function(change, er, data, res) {
   if (er)
     return this.emit('error', er)
-  this.emit('put', change, data)
+  else
+    this.emit('put', change, data)
   rimraf(this.tmp + '/' + change.id, function() {
     this.resume()
   }.bind(this))
@@ -472,7 +480,6 @@ FullFat.prototype.fetchAll = function(change, need, did) {
   var f = change.fat
   var tmp = path.resolve(this.tmp, change.id)
   var len = need.length
-  var did = []
   if (!len)
     return this.put(change, did)
 
