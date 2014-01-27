@@ -108,14 +108,23 @@ FullFat.prototype._emit = function(ev, arg) {
 FullFat.prototype.writeSeq = function() {
   var seq = +this.since
   if (this.seqFile && !this.writingSeq && seq > 0) {
+    var data = seq + '\n'
+    var file = this.seqFile + '.' + seq
     this.writingSeq = true
-    fs.writeFile(this.seqFile, seq + '\n', 'ascii', function(writeEr) {
-      this.writingSeq = false
+    fs.writeFile(file, data, 'ascii', function(writeEr) {
       var er = this.error
       if (er)
         this.emit('error', er)
-      else if (!writeEr)
-        this.emit('sequence', seq)
+      else if (!writeEr) {
+        fs.rename(file, this.seqFile, function(mvEr) {
+          this.writingSeq = false
+          var er = this.error
+          if (er)
+            this.emit('error', er)
+          else if (!mvEr)
+            this.emit('sequence', seq)
+        }.bind(this))
+      }
     }.bind(this))
   }
 }
