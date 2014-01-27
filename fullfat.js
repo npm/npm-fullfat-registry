@@ -418,11 +418,11 @@ FullFat.prototype.put = function(change, did) {
   req.on('error', this.emit.bind(this, 'error'))
   req.write(b, 'ascii')
   req.write(doc)
-  this.putAttachments(req, f, boundaries, send)
-  req.on('response', this.onputres.bind(this, f, req))
+  this.putAttachments(req, change, boundaries, send)
+  req.on('response', parse(this.onputres.bind(this, change)))
 }
 
-FullFat.prototype.putAttachments = function(req, f, boundaries, send) {
+FullFat.prototype.putAttachments = function(req, change, boundaries, send) {
   // send is the ordered list of [[name, attachment object],...]
   var b = boundaries.shift()
   var ns = send.shift()
@@ -435,22 +435,20 @@ FullFat.prototype.putAttachments = function(req, f, boundaries, send) {
 
   var name = ns[0]
   req.write(b, 'ascii')
-  var file = path.join(this.tmp, f.name, name)
+  var file = path.join(this.tmp, change.id, name)
   var fstr = fs.createReadStream(file)
 
-  fstr.on('end', this.putAttachments.bind(this, req, f, boundaries, send))
+  fstr.on('end', this.putAttachments.bind(this, req, change, boundaries, send))
   fstr.on('error', this.emit.bind(this, 'error'))
   fstr.pipe(req, { end: false })
 }
 
-FullFat.prototype.onputres = function(f, req, res) {
-  parse(res, function (er, data) {
-    if (er)
-      return this.emit('error', er)
-    this.emit('put', f, data)
-    rimraf(this.tmp + '/' + f.name, function() {
-      this.resume()
-    }.bind(this))
+FullFat.prototype.onputres = function(change, er, data, res) {
+  if (er)
+    return this.emit('error', er)
+  this.emit('put', change, data)
+  rimraf(this.tmp + '/' + change.id, function() {
+    this.resume()
   }.bind(this))
 }
 
