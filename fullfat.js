@@ -133,13 +133,14 @@ FullFat.prototype.onchange = function(er, change) {
   this.emit('change', change)
 
   if (change.deleted)
-    this.delete(change.id)
+    this.delete(change)
   else
     this.getDoc(change)
 }
 
 FullFat.prototype.getDoc = function(change) {
-  var opt = url.parse(this.skim + '/' + change.id + '?revs=true')
+  var q = '?revs=true&att_encoding_info=true'
+  var opt = url.parse(this.skim + '/' + change.id + q)
   opt.method = 'GET'
   opt.headers = {
     'user-agent': this.ua,
@@ -157,15 +158,16 @@ FullFat.prototype.ongetdoc = function(change, er, data, res) {
   else {
     change.doc = data
     if (change.id.match(/^_design\//))
-      this.putDesign(change.doc)
+      this.putDesign(change)
     else
       this.putDoc(change)
   }
 }
 
 FullFat.prototype.putDoc = function(change) {
-  var s = change.doc
-  var opt = url.parse(this.fat + '/' + s.name)
+  var q = '?revs=true&att_encoding_info=true'
+  var opt = url.parse(this.fat + '/' + change.id + q)
+
   opt.method = 'GET'
   opt.headers = {
     'user-agent': this.ua,
@@ -173,12 +175,13 @@ FullFat.prototype.putDoc = function(change) {
   }
   var req = hh.get(opt)
   req.on('error', this.emit.bind(this, 'error'))
-  req.on('response', this.onfatget.bind(this, s))
+  req.on('response', parse(this.onfatget.bind(this, change)))
 }
 
-FullFat.prototype.putDesign = function(doc) {
+FullFat.prototype.putDesign = function(change) {
+  var doc = change.doc
   this.pause()
-  var opt = url.parse(this.fat + '/' + doc._id + '?new_edits=false')
+  var opt = url.parse(this.fat + '/' + change.id + '?new_edits=false')
   var b = new Buffer(JSON.stringify(doc), 'utf8')
   opt.method = 'PUT'
   opt.headers = {
@@ -189,22 +192,20 @@ FullFat.prototype.putDesign = function(doc) {
   }
 
   var req = hh.request(opt)
-  req.on('response', this.onputdesign.bind(this, doc))
+  req.on('response', parse(this.onputdesign.bind(this, change)))
   req.on('error', this.emit.bind(this, 'error'))
   req.end(b)
 }
 
-FullFat.prototype.onputdesign = function(doc, res) {
-  parse(res, function(er, data) {
-    if (er)
-      return this.emit('error', er)
-    this.emit('putDesign', doc, data)
-    this.resume()
-  }.bind(this))
+FullFat.prototype.onputdesign = function(change, er, data, res) {
+  if (er)
+    return this.emit('error', er)
+  this.emit('putDesign', change, data)
+  this.resume()
 }
 
-FullFat.prototype.delete = function(name) {
-  this.pause()
+FullFat.prototype.delete = function(change) {
+  var name = change.id
 
   var opt = url.parse(this.fat + '/' + name)
   opt.headers = {
@@ -213,60 +214,68 @@ FullFat.prototype.delete = function(name) {
   }
   opt.method = 'HEAD'
 
-  var req = hh.request(opt, function(res) {
-    // already gone?  totally fine.  move on, nothing to delete here.
-    if (res.statusCode === 404) {
-      req.abort()
-      return this.resume()
-    }
-
-    var rev = res.headers.etag.replace(/^"|"$/g, '')
-    opt = url.parse(this.fat + '/' + name + '?rev=' + rev)
-    opt.headers = {
-      'user-agent': this.ua,
-      'connection': 'close'
-    }
-    opt.method = 'DELETE'
-    req = hh.request(opt, function(res) {
-      parse(res, function(er, data) {
-        if (er)
-          return this.emit('error', er)
-        data.name = name
-        this.emit('delete', data)
-        this.resume()
-      }.bind(this))
-    }.bind(this))
-    req.on('error', this.emit.bind(this, 'error'))
-    req.end()
-  }.bind(this))
-
+  var req = hh.request(opt)
+  req.on('response', this.ondeletehead.bind(this, change))
   req.on('error', this.emit.bind(this, 'error'))
   req.end()
 }
 
-FullFat.prototype.onfatget = function(s, res) {
-  if (res.statusCode !== 200) {
-    // means it's not in the database yet
-    var f = JSON.parse(JSON.stringify(s))
-    f._attachments = {}
-    return this.merge(s, f)
-  }
+FullFat.prototype.ondeletehead = function(change, res) {
+  // already gone?  totally fine.  move on, nothing to delete here.
+  if (er && er.statusCode === 404)
+    return this.afterDelete(change)
 
-  parse(res, function(er, f) {
-    if (er)
-      this.emit('error', er)
-    else
-      this.merge(s, f)
-  }.bind(this))
+  if (er)
+    return this.emit('error', er)
+
+  var rev = res.headers.etag.replace(/^"|"$/g, '')
+  opt = url.parse(this.fat + '/' + name + '?rev=' + rev)
+  opt.headers = {
+    'user-agent': this.ua,
+    'connection': 'close'
+  }
+  opt.method = 'DELETE'
+  var req = hh.request(opt)
+  req.on('response', parse(this.ondelete.bind(this, change)))
+  req.on('error', this.emit.bind(this, 'error'))
+  req.end()
+}
+
+FullFat.prototype.ondelete = function(change, er, data, res) {
+  if (er && er.statusCode === 404)
+    this.afterDelete(change)
+  else if (er)
+    this.emit('error', er)
+  else
+    // scorch the earth! remove fully! repeat until 404!
+    this.delete(change)
+}
+
+FullFat.prototype.afterDelete = function(change) {
+  this.emit('delete', change)
+  this.resume()
+}
+
+FullFat.prototype.onfatget = function(change, er, f, res) {
+  if (er && er.statusCode !== 404)
+    return this.emit('error', er)
+
+  if (er)
+    f = JSON.parse(JSON.stringify(change.doc))
+
+  f._attachments = f._attachments || {}
+  change.fat = f
+  this.merge(change)
 }
 
 
-FullFat.prototype.merge = function(s, f) {
+FullFat.prototype.merge = function(change) {
+  var s = change.doc
+  var f = change.fat
+
   // if no versions in the skim record, then nothing to fetch
   if (!s.versions)
     return this.resume()
-
-  f._attachments = f._attachments || {}
 
   // Only fetch attachments if it's on the list.
   var pass = true
@@ -275,13 +284,13 @@ FullFat.prototype.merge = function(s, f) {
     for (var i = 0; !pass && i < this.whitelist.length; i++) {
       var w = this.whitelist[i]
       if (typeof w === 'string')
-        pass = w === s.name
+        pass = w === change.id
       else
-        pass = w.exec(s.name)
+        pass = w.exec(change.id)
     }
     if (!pass) {
       f._attachments = {}
-      return this.fetchAll(f, [], [])
+      return this.fetchAll(change, [], [])
     }
   }
 
@@ -326,12 +335,13 @@ FullFat.prototype.merge = function(s, f) {
   if (!changed)
     this.resume()
   else
-    this.fetchAll(f, need, [])
+    this.fetchAll(change, need, [])
 }
 
-FullFat.prototype.put = function(f, did) {
+FullFat.prototype.put = function(change, did) {
+  var f = change.fat
   // at this point, all the attachments have been fetched into
-  // {this.tmp}/{f.name}/{attachment basename}
+  // {this.tmp}/{change.id}/{attachment basename}
   // make a multipart PUT with all of the missing ones set to
   // follows:true
   var boundaries = []
@@ -444,26 +454,28 @@ FullFat.prototype.onputres = function(f, req, res) {
   }.bind(this))
 }
 
-FullFat.prototype.fetchAll = function(f, need, did) {
-  var tmp = path.resolve(this.tmp, f.name)
+FullFat.prototype.fetchAll = function(change, need, did) {
+  var f = change.fat
+  var tmp = path.resolve(this.tmp, change.id)
   var len = need.length
   var did = []
   if (!len)
-    return this.put(f, did)
+    return this.put(change, did)
 
   var errState = null
 
   mkdirp(tmp, function(er) {
     if (er)
       return this.emit('error', er)
-    need.forEach(this.fetchOne.bind(this, f, need, did))
+    need.forEach(this.fetchOne.bind(this, change, need, did))
   }.bind(this))
 }
 
-FullFat.prototype.fetchOne = function(f, need, did, v) {
+FullFat.prototype.fetchOne = function(change, need, did, v) {
+  var f = change.fat
   var r = url.parse(f.versions[v].dist.tarball)
   if (this.registry) {
-    var p = '/' + f.name + '/-/' + path.basename(r.pathname)
+    var p = '/' + change.id + '/-/' + path.basename(r.pathname)
     r = url.parse(this.registry + p)
   }
 
@@ -475,15 +487,16 @@ FullFat.prototype.fetchOne = function(f, need, did, v) {
 
   var req = hh.request(r)
   req.on('error', this.emit.bind(this, 'error'))
-  req.on('response', this.onattres.bind(this, f, need, did, v))
+  req.on('response', this.onattres.bind(this, change, need, did, v))
   req.end()
 }
 
-FullFat.prototype.onattres = function(f, need, did, v, res) {
+FullFat.prototype.onattres = function(change, need, did, v, res) {
+  var f = change.fat
   var att = f.versions[v].dist.tarball
   var sum = f.versions[v].dist.shasum
   var filename = f.name + '-' + v + '.tgz'
-  var file = path.join(this.tmp, f.name, filename)
+  var file = path.join(this.tmp, change.id, filename)
 
   // TODO: If the file already exists, get its size.
   // If the size matches content-length, get the md5
@@ -502,15 +515,14 @@ FullFat.prototype.onattres = function(f, need, did, v, res) {
     if (a)
       this.emit('download', a)
     if (need.length === did.length)
-      this.put(f, did)
+      this.put(change, did)
   }.bind(this)
 
   // if the attachment can't be found, then skip that version
   // it's uninstallable as of right now, and may or may not get
   // fixed in a future update
-  if (res.statusCode !== 200) {
+  if (res.statusCode !== 200)
     return skip()
-  }
 
   var fstr = fs.createWriteStream(file)
 
@@ -534,7 +546,7 @@ FullFat.prototype.onattres = function(f, need, did, v, res) {
   res.pipe(fstr)
 
   fstr.on('error', function(er) {
-    er.doc = f
+    er.change = change
     er.version = v
     er.path = file
     er.url = att
@@ -544,24 +556,24 @@ FullFat.prototype.onattres = function(f, need, did, v, res) {
   fstr.on('close', function() {
     if (errState || !shaOk) {
       // something didn't work, but the error was squashed
-      // take that as a signal to just delete this version,
+      // take that as a signal to just delete this version
       return skip()
-    } else {
-      // it worked!  change the dist.tarball url to point to the
-      // registry where this is being stored.  It'll be rewritten by
-      // the _show/pkg function when going through the rewrites, anyway,
-      // but this url will work if the couch itself is accessible.
-      var newatt = this.publicFat + '/' + f.name + '/' + f.name + '-' + v + '.tgz'
-      f.versions[v].dist.tarball = newatt
     }
+    // it worked!  change the dist.tarball url to point to the
+    // registry where this is being stored.  It'll be rewritten by
+    // the _show/pkg function when going through the rewrites, anyway,
+    // but this url will work if the couch itself is accessible.
+    var newatt = this.publicFat + '/' + change.id +
+                 '/' + change.id + '-' + v + '.tgz'
+    f.versions[v].dist.tarball = newatt
 
-    if (res.headers['content-length']) {
+    if (res.headers['content-length'])
       var cl = +res.headers['content-length']
-    } else {
+    else
       var cl = counter.count
-    }
 
     var a = {
+      change: change,
       version: v,
       name: path.basename(file),
       length: cl,
