@@ -91,8 +91,7 @@ FullFat.prototype.start = function() {
   this.follow = follow({
     db: this.skim,
     since: this.since,
-    inactivity_ms: this.inactivity_ms,
-    include_docs: true
+    inactivity_ms: this.inactivity_ms
   }, this.onchange.bind(this))
   this.follow.on('error', this.emit.bind(this, 'error'))
 }
@@ -125,6 +124,9 @@ FullFat.prototype.onchange = function(er, change) {
   if (er)
     return this.emit('error', er)
 
+  if (!change.id)
+    return
+
   this.pause()
   this.since = change.seq
 
@@ -132,12 +134,33 @@ FullFat.prototype.onchange = function(er, change) {
 
   if (change.deleted)
     this.delete(change.id)
-
-  else if (change.id.match(/^_design\//))
-    this.putDesign(change.doc)
-
   else
-    this.putDoc(change)
+    this.getDoc(change)
+}
+
+FullFat.prototype.getDoc = function(change) {
+  var opt = url.parse(this.skim + '/' + change.id + '?revs=true')
+  opt.method = 'GET'
+  opt.headers = {
+    'user-agent': this.ua,
+    'connection': 'close'
+  }
+
+  var req = hh.get(opt)
+  req.on('error', this.emit.bind(this, 'error'))
+  req.on('response', parse(this.ongetdoc.bind(this, change)))
+}
+
+FullFat.prototype.ongetdoc = function(change, er, data, res) {
+  if (er)
+    this.emit('error', er)
+  else {
+    change.doc = data
+    if (change.id.match(/^_design\//))
+      this.putDesign(change.doc)
+    else
+      this.putDoc(change)
+  }
 }
 
 FullFat.prototype.putDoc = function(change) {
