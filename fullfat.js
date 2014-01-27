@@ -311,18 +311,25 @@ FullFat.prototype.merge = function(change) {
 
     if (!f.versions[v] || f.versions[v].dist.shasum !== ver.dist.shasum) {
       f.versions[v] = s.versions[v]
-      if (pass)
-        need.push(v)
+      need.push(v)
       changed = true
-    } else if (pass && !f._attachments[att]) {
+    } else if (!f._attachments[att]) {
       need.push(v)
       changed = true
     }
   }
 
   for (var a in f._attachments) {
-    var v = a.substr(f.name + 1).replace(/\.tgz$/, '')
-    if (!pass || !f.versions[v]) {
+    var found = false
+    for (var v in f.versions) {
+      var tgz = f.versions[v].dist.tarball
+      var b = path.basename(url.parse(tgz).pathname)
+      if (b === a) {
+        found = true
+        break
+      }
+    }
+    if (!found) {
       delete f._attachments[a]
       changed = true
     }
