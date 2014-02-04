@@ -460,7 +460,14 @@ FullFat.prototype.putAttachments = function(req, change, boundaries, send) {
   var file = path.join(this.tmp, change.id + '-' + change.seq, name)
   var fstr = fs.createReadStream(file)
 
-  fstr.on('end', this.putAttachments.bind(this, req, change, boundaries, send))
+  fstr.on('end', function() {
+    this.emit('upload', {
+      change: change,
+      name: name
+    })
+    this.putAttachments(req, change, boundaries, send)
+  }.bind(this))
+
   fstr.on('error', this.emit.bind(this, 'error'))
   fstr.pipe(req, { end: false })
 }

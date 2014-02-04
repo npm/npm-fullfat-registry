@@ -75,4 +75,6 @@ ff.on('start', function() {
   throw er
 }).on('download', function(a) {
   console.log('-> %s', a.name)
+}).on('upload', function(a) {
+  console.log('<- %s', a.name)
 })
