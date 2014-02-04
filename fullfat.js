@@ -363,7 +363,7 @@ FullFat.prototype.put = function(change, did) {
   var f = change.fat
   change.did = did
   // at this point, all the attachments have been fetched into
-  // {this.tmp}/{change.id}/{attachment basename}
+  // {this.tmp}/{change.id}-{change.seq}/{attachment basename}
   // make a multipart PUT with all of the missing ones set to
   // follows:true
   var boundaries = []
@@ -457,7 +457,7 @@ FullFat.prototype.putAttachments = function(req, change, boundaries, send) {
 
   var name = ns[0]
   req.write(b, 'ascii')
-  var file = path.join(this.tmp, change.id, name)
+  var file = path.join(this.tmp, change.id + '-' + change.seq, name)
   var fstr = fs.createReadStream(file)
 
   fstr.on('end', this.putAttachments.bind(this, req, change, boundaries, send))
@@ -485,14 +485,14 @@ FullFat.prototype.onputres = function(change, er, data, res) {
   else {
     this.emit('put', change, data)
     // Just a best-effort cleanup.  No big deal, really.
-    rimraf(this.tmp + '/' + change.id, function() {})
+    rimraf(this.tmp + '/' + change.id + '-' + change.seq, function() {})
     this.resume()
   }
 }
 
 FullFat.prototype.fetchAll = function(change, need, did) {
   var f = change.fat
-  var tmp = path.resolve(this.tmp, change.id)
+  var tmp = path.resolve(this.tmp, change.id + '-' + change.seq)
   var len = need.length
   if (!len)
     return this.put(change, did)
@@ -531,7 +531,7 @@ FullFat.prototype.onattres = function(change, need, did, v, res) {
   var att = f.versions[v].dist.tarball
   var sum = f.versions[v].dist.shasum
   var filename = f.name + '-' + v + '.tgz'
-  var file = path.join(this.tmp, change.id, filename)
+  var file = path.join(this.tmp, change.id + '-' + change.seq, filename)
 
   // TODO: If the file already exists, get its size.
   // If the size matches content-length, get the md5
