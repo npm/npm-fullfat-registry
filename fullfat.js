@@ -317,8 +317,7 @@ FullFat.prototype.merge = function(change) {
     }
   }
 
-  // remove any versions that s removes
-  // Versions without attachments will be deleted later, if unfound.
+  // remove any versions that s removes, or which lack attachments
   for (var v in f.versions) {
     if (!s.versions[v])
       delete f.versions[v]
@@ -467,13 +466,28 @@ FullFat.prototype.putAttachments = function(req, change, boundaries, send) {
 }
 
 FullFat.prototype.onputres = function(change, er, data, res) {
-  if (er)
-    return this.emit('error', er)
-  else
+
+  if (!change.id)
+    throw new Error('wtf?')
+
+  // In some oddball cases, it looks like CouchDB will report stubs that
+  // it doesn't in fact have.  It's possible that this is due to old bad
+  // data in a past FullfatDB implementation, but whatever the case, we
+  // ought to catch such errors and DTRT.  In this case, the "right thing"
+  // is to re-try the PUT as if it had NO attachments, so that it no-ops
+  // the attachments that ARE there, and fills in the blanks.
+  // We do that by faking the onfatget callback with a 404 error.
+  if (er && er.statusCode === 412 &&
+      0 === er.message.indexOf('{"error":"missing_stub"'))
+    this.onfatget(change, { statusCode: 404 }, {}, {})
+  else if (er)
+    this.emit('error', er)
+  else {
     this.emit('put', change, data)
-  rimraf(this.tmp + '/' + change.id, function() {
+    // Just a best-effort cleanup.  No big deal, really.
+    rimraf(this.tmp + '/' + change.id, function() {})
     this.resume()
-  }.bind(this))
+  }
 }
 
 FullFat.prototype.fetchAll = function(change, need, did) {
