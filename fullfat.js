@@ -485,9 +485,11 @@ FullFat.prototype.onputres = function(change, er, data, res) {
   // the attachments that ARE there, and fills in the blanks.
   // We do that by faking the onfatget callback with a 404 error.
   if (er && er.statusCode === 412 &&
-      0 === er.message.indexOf('{"error":"missing_stub"'))
+      0 === er.message.indexOf('{"error":"missing_stub"') &&
+      !change.didFake404){
+    change.didFake404 = true
     this.onfatget(change, { statusCode: 404 }, {}, {})
-  else if (er)
+  } else if (er)
     this.emit('error', er)
   else {
     this.emit('put', change, data)
