@@ -21,11 +21,11 @@ test('follower', function(t) {
     t.pass('started')
   })
 
-  ff.on('put', function(doc, result) {
+  ff.on('put', function(change, result) {
     t.ok(sawStart)
     t.notOk(sawPut)
     sawPut = true
-    t.equal(doc._id, 'test-package')
+    t.equal(change.id, 'test-package')
     t.has(result, { ok: true, id: 'test-package' })
     t.end()
   })
