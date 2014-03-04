@@ -75,8 +75,8 @@ ff.on('start', function() {
   console.log('PUT %s', change.id)
 }).on('delete', function(change) {
   console.log('DELETE %s', change.id)
-}).on('error', function(er) {
-  console.log('ERROR', er)
+}).on('error', function(er, context) {
+  console.log('ERROR', context || '', er)
   throw er
 }).on('download', function(a) {
   console.log('-> %s', a.name)
