@@ -565,8 +565,10 @@ FullFat.prototype.onattres = function(change, need, did, v, res) {
   // if the attachment can't be found, then skip that version
   // it's uninstallable as of right now, and may or may not get
   // fixed in a future update
-  if (res.statusCode !== 200)
-    return skip()
+  if (res.statusCode !== 200) {
+    var er = new Error('Error fetching attachment: ' + att)
+    return this.emit('error', er)
+  }
 
   var fstr = fs.createWriteStream(file)
 
