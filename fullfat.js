@@ -517,7 +517,7 @@ FullFat.prototype.fetchAll = function(change, need, did) {
 
 FullFat.prototype.fetchOne = function(change, need, did, v) {
   var f = change.fat
-  var r = url.parse(f.versions[v].dist.tarball)
+  var r = url.parse(change.doc.versions[v].dist.tarball)
   if (this.registry) {
     var p = '/' + change.id + '/-/' + path.basename(r.pathname)
     r = url.parse(this.registry + p)
@@ -531,13 +531,13 @@ FullFat.prototype.fetchOne = function(change, need, did, v) {
 
   var req = hh.request(r)
   req.on('error', this.emit.bind(this, 'error'))
-  req.on('response', this.onattres.bind(this, change, need, did, v))
+  req.on('response', this.onattres.bind(this, change, need, did, v, r))
   req.end()
 }
 
-FullFat.prototype.onattres = function(change, need, did, v, res) {
+FullFat.prototype.onattres = function(change, need, did, v, r, res) {
   var f = change.fat
-  var att = f.versions[v].dist.tarball
+  var att = r.href
   var sum = f.versions[v].dist.shasum
   var filename = f.name + '-' + v + '.tgz'
   var file = path.join(this.tmp, change.id + '-' + change.seq, filename)
