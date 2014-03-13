@@ -52,6 +52,10 @@ function FullFat(conf) {
   this.since = 0
   this.follow = null
 
+  // set to true to log missing attachments only.
+  // otherwise, emits an error.
+  this.missingLog = conf.missing_log || false
+
   this.whitelist = conf.whitelist || [ /.*/ ]
 
   this.tmp = conf.tmp
@@ -567,7 +571,12 @@ FullFat.prototype.onattres = function(change, need, did, v, r, res) {
   // fixed in a future update
   if (res.statusCode !== 200) {
     var er = new Error('Error fetching attachment: ' + att)
-    return this.emit('error', er)
+    er.statusCode = res.statusCode
+    er.code = 'attachment-fetch-fail'
+    if (this.missingLog)
+      return fs.appendFile(this.missingLog, att + '\n', skip)
+    else
+      return this.emit('error', er)
   }
 
   var fstr = fs.createWriteStream(file)

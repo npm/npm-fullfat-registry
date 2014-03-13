@@ -22,6 +22,11 @@ var parser = dashdash.createParser({
       default: null,
       help: 'Path to folder where temp files are stored.',
       helpArg: 'PATH' },
+    { names: [ 'missing-log', 'm' ],
+      type: 'string',
+      default: false,
+      help: 'Log to write missing tarballs. If not set, then ' +
+            'crash on fetch failures' },
     { names: [ 'user-agent', 'ua', 'u' ],
       type: 'string',
       default: null,
