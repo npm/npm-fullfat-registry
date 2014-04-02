@@ -5,11 +5,11 @@ var url = require('url')
 var http = require('http')
 var ff
 
-test('put a missing doc in there', function(t) {
-  var testPkg = require('./fixtures/test-package-missing.json')
+test('create unpublished test record', function(t) {
+  var testPkg = require('./fixtures/unpublished.json')
 
   var body = new Buffer(JSON.stringify(testPkg))
-  var u = url.parse('http://admin:admin@localhost:15984/skim/test-package-missing')
+  var u = url.parse('http://admin:admin@localhost:15984/skim/hades')
   u.method = 'PUT'
   u.headers = {
     'content-type': 'application/json',
@@ -25,7 +25,7 @@ test('put a missing doc in there', function(t) {
     })
     res.on('end', function() {
       c = JSON.parse(c)
-      t.has(c, { ok: true, id: 'test-package-missing' })
+      t.has(c, { ok: true, id: 'hades' })
       t.end()
     })
   }).end(body)
@@ -49,20 +49,20 @@ test('follower', function(t) {
     t.pass('started')
   })
 
+  ff.on('error', function(er) {
+    // Make sure that it's just an error 
+    t.equal(er.message, 'Error fetching attachment: http://localhost:18080/test-package-0.0.1.tgz')
+    t.ok('saw error for other package')
+  })
+
   ff.on('put', function(change, result) {
-    if (change.id === 'test-package')
+    if (change.id !== 'hades')
       return
     t.ok(sawStart)
     t.notOk(sawPut)
     sawPut = true
-    t.equal(change.id, 'test-package-missing')
-    t.has(result, { ok: true, id: 'test-package-missing' })
-  })
-
-  ff.on('error', function(er) {
-    console.error('FullFat error', er)
-    sawError = true
-    t.pass('got missing error')
+    t.equal(change.id, 'hades')
+    t.has(result, { ok: true, id: 'hades' })
     t.end()
   })
 
@@ -71,20 +71,14 @@ test('follower', function(t) {
   })
 })
 
-test('delete problematic record', function(t) {
-  var u = 'http://admin:admin@localhost:15984/skim/test-package-missing'
+test('verify unpublished in fullfat', function(t) {
+  var u = 'http://admin:admin@localhost:15984/fat/hades'
+  var expect = require('./fixtures/unpublished.json')
   http.get(u, parse(function(er, data, res) {
     if (er)
       throw er
-    u += '?rev=' + data._rev
-    u = url.parse(u)
-    u.method = 'DELETE'
-    http.request(u, parse(function(er, data, res) {
-      if (er)
-        throw er
-      t.pass('deleted')
-      t.end()
-    })).end()
+    t.has(data, expect)
+    t.end()
   }))
 })
 

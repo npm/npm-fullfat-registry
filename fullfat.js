@@ -172,9 +172,16 @@ FullFat.prototype.ongetdoc = function(change, er, data, res) {
     change.doc = data
     if (change.id.match(/^_design\//))
       this.putDesign(change)
+    else if (data.time && data.time.unpublished)
+      this.unpublish(change)
     else
       this.putDoc(change)
   }
+}
+
+FullFat.prototype.unpublish = function(change) {
+  change.fat = change.doc
+  this.put(change, [])
 }
 
 FullFat.prototype.putDoc = function(change) {

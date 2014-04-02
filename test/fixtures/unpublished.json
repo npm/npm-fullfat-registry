@@ -1,0 +1,27 @@
+{
+  "_id": "hades",
+  "name": "hades",
+  "time": {
+    "modified": "2014-04-02T10:03:38.520Z",
+    "created": "2013-07-29T02:04:19.735Z",
+    "0.0.0": "2013-07-29T02:04:22.286Z",
+    "0.0.1": "2014-04-02T09:59:15.823Z",
+    "unpublished": {
+      "name": "jcrugzz",
+      "time": "2014-04-02T17:09:54.225Z",
+      "tags": {
+        "latest": "0.0.1"
+      },
+      "maintainers": [
+        {
+          "name": "jcrugzz",
+          "email": "jcrugzz@gmail.com"
+        }
+      ],
+      "description": "Upload files using pkgcloud over a websocket connection",
+      "versions": [
+        "0.0.1"
+      ]
+    }
+  }
+}
