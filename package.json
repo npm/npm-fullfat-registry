@@ -1,6 +1,6 @@
 {
   "name": "npm-fullfat-registry",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "description": "Make a registry with all attachments intact",
   "main": "fullfat.js",
   "directories": {
