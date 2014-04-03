@@ -317,6 +317,7 @@ FullFat.prototype.merge = function(change) {
     var tgz = s.versions[v].dist.tarball
     var att = path.basename(url.parse(tgz).pathname)
     var ver = s.versions[v]
+    f.versions = f.versions || {}
 
     if (!f.versions[v] || f.versions[v].dist.shasum !== ver.dist.shasum) {
       f.versions[v] = s.versions[v]
