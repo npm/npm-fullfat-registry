@@ -542,7 +542,15 @@ FullFat.prototype.fetchOne = function(change, need, did, v) {
   }
 
   var req = hh.request(r)
-  req.on('error', this.emit.bind(this, 'error'))
+  req.on('error', (function(e) {
+
+    // in the case where the tarball URL doesn't connect
+    // (e.g, it points to a private URL) treat it as a missing document
+    if (e.code === 'ECONNREFUSED')
+      this.onattres(change, need, did, v, r)
+    else
+      this.emit('error', e)
+  }).bind(this))
   req.on('response', this.onattres.bind(this, change, need, did, v, r))
   req.end()
 }
