@@ -20,7 +20,9 @@ crashes.
 ```bash
 npm-fullfat-registry \
   --fat=http://my-local-registry.example.com:5984/registry \
-  --skim=http://couch.npmjs.org/registry
+  --skim=http://couch.npmjs.org/registry \
+  --seq-file=registry.seq \
+  --missing-log=missing.log
 ```
 
 Or, in your own program:
