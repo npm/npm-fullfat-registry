@@ -40,6 +40,11 @@ var parser = dashdash.createParser({
       type: 'number',
       help: 'Max ms to wait before assuming disconnection. Default=3600000',
       helpArg: 'MS' },
+    { names: ['proxy', 'p' ],
+      type: 'string',
+      default: null,
+      help: 'HTTP proxy to use for outbound requests.',
+      helpArg: 'URL' },
     { names: [ 'help', 'h' ],
       type: 'bool',
       help: 'Display this help' }
