@@ -17,8 +17,8 @@
     "http-https": "~1.0.0"
   },
   "devDependencies": {
-    "tap": "~0.4.6",
-    "st": "~0.2.3"
+    "st": "~0.2.3",
+    "tap": "^1.2.0"
   },
   "scripts": {
     "test": "tap test/*.js"
