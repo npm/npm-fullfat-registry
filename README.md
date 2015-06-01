@@ -20,7 +20,7 @@ crashes.
 ```bash
 npm-fullfat-registry \
   --fat=http://my-local-registry.example.com:5984/registry \
-  --skim=http://couch.npmjs.org/registry \
+  --skim=http://skimdb.npmjs.com/registry \
   --seq-file=registry.seq \
   --missing-log=missing.log
 ```
@@ -30,7 +30,7 @@ Or, in your own program:
 ```javascript
 var Fullfat = require('npm-fullfat-registry')
 var ff = new Fullfat({
-  skim: 'http://couch.npmjs.org/registry',
+  skim: 'http://skimdb.npmjs.com/registry',
   fat: 'http://my-local-registry.example.com:5984/registry',
   seq_file: '/tmp/file.seq'
 })
