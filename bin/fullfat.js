@@ -42,7 +42,11 @@ var parser = dashdash.createParser({
       helpArg: 'MS' },
     { names: [ 'help', 'h' ],
       type: 'bool',
-      help: 'Display this help' }
+      help: 'Display this help' },
+    { names: [ 'whitelist', 'w' ],
+      type: 'arrayOfString',
+      help: 'The list of attachments you want to fetch',
+      helpArg: 'NAME' }
   ]
 })
 

@@ -22,7 +22,8 @@ npm-fullfat-registry \
   --fat=http://my-local-registry.example.com:5984/registry \
   --skim=http://couch.npmjs.org/registry \
   --seq-file=registry.seq \
-  --missing-log=missing.log
+  --missing-log=missing.log \
+  --whitelist request -w futures
 ```
 
 Or, in your own program:
