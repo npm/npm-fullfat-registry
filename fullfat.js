@@ -97,7 +97,7 @@ FullFat.prototype.start = function() {
     since: this.since,
     inactivity_ms: this.inactivity_ms
   }, this.onchange.bind(this))
-  this.follow.on('error', this.emit.bind(this, 'error'))
+  this.follow.on('error', this.emit.bind(this, 'error', 'couch follow'))
 }
 
 FullFat.prototype._emit = function(ev, arg) {
@@ -161,7 +161,7 @@ FullFat.prototype.getDoc = function(change) {
   }
 
   var req = hh.get(opt)
-  req.on('error', this.emit.bind(this, 'error'))
+  req.on('error', this.emit.bind(this, 'error', 'get doc ' + change.id))
   req.on('response', parse(this.ongetdoc.bind(this, change)))
 }
 
@@ -194,7 +194,7 @@ FullFat.prototype.putDoc = function(change) {
     'connection': 'close'
   }
   var req = hh.get(opt)
-  req.on('error', this.emit.bind(this, 'error'))
+  req.on('error', this.emit.bind(this, 'error', 'put doc ' + change.id))
   req.on('response', parse(this.onfatget.bind(this, change)))
 }
 
@@ -213,7 +213,7 @@ FullFat.prototype.putDesign = function(change) {
 
   var req = hh.request(opt)
   req.on('response', parse(this.onputdesign.bind(this, change)))
-  req.on('error', this.emit.bind(this, 'error'))
+  req.on('error', this.emit.bind(this, 'error', 'put design ' + change.id))
   req.end(b)
 }
 
@@ -236,7 +236,7 @@ FullFat.prototype.delete = function(change) {
 
   var req = hh.request(opt)
   req.on('response', this.ondeletehead.bind(this, change))
-  req.on('error', this.emit.bind(this, 'error'))
+  req.on('error', this.emit.bind(this, 'error', 'delete ' + name))
   req.end()
 }
 
@@ -254,7 +254,7 @@ FullFat.prototype.ondeletehead = function(change, res) {
   opt.method = 'DELETE'
   var req = hh.request(opt)
   req.on('response', parse(this.ondelete.bind(this, change)))
-  req.on('error', this.emit.bind(this, 'error'))
+  req.on('error', this.emit.bind(this, 'error', 'delete ' + change.id))
   req.end()
 }
 
@@ -449,7 +449,7 @@ FullFat.prototype.put = function(change, did) {
   p.headers['content-length'] = attSize + bSize + doc.length
 
   var req = hh.request(p)
-  req.on('error', this.emit.bind(this, 'error'))
+  req.on('error', this.emit.bind(this, 'error', 'put ' + f.name))
   req.write(b, 'ascii')
   req.write(doc)
   this.putAttachments(req, change, boundaries, send)
@@ -480,7 +480,7 @@ FullFat.prototype.putAttachments = function(req, change, boundaries, send) {
     this.putAttachments(req, change, boundaries, send)
   }.bind(this))
 
-  fstr.on('error', this.emit.bind(this, 'error'))
+  fstr.on('error', this.emit.bind(this, 'error', 'get tmp attachment ' + name))
   fstr.pipe(req, { end: false })
 }
 
@@ -542,7 +542,7 @@ FullFat.prototype.fetchOne = function(change, need, did, v) {
   }
 
   var req = hh.request(r)
-  req.on('error', this.emit.bind(this, 'error'))
+  req.on('error', this.emit.bind(this, 'error', 'fetch one ' + change.id + ' ' + r.pathname))
   req.on('response', this.onattres.bind(this, change, need, did, v, r))
   req.end()
 }
@@ -613,7 +613,7 @@ FullFat.prototype.onattres = function(change, need, did, v, r, res) {
     er.version = v
     er.path = file
     er.url = att
-    this.emit('error', errState = errState || er)
+    this.emit('error', errState = errState || er, 'attachment ' + change.id + ' ' + filename)
   }.bind(this))
 
   fstr.on('close', function() {
