@@ -77,7 +77,7 @@ ff.on('start', function() {
   console.log('DELETE %s', change.id)
 }).on('error', function(er) {
   console.log('ERROR', er)
-  throw er
+  process.exit(1)
 }).on('download', function(a) {
   console.log('-> %s', a.name)
 }).on('upload', function(a) {
