@@ -66,6 +66,41 @@ function FullFat(conf) {
 
   this.boundary = 'npmFullFat-' + crypto.randomBytes(6).toString('base64')
 
+  this.proxy = conf.proxy ? url.parse(conf.proxy) : false
+  this.proxySkim = conf.proxy_skim
+  this.proxyFat = conf.proxy_fat
+  this.proxyTarballs = conf.proxy_tarballs
+
+  this._req = function(reqUrl, method, headers, allowProxy) {
+    headers = headers || {}
+    method = method || 'GET'
+
+    if (!headers['user-agent']) {
+      headers['user-agent'] = this.ua
+    }
+
+    if (!headers['connection']) {
+      headers['connection'] = 'close'
+    }
+
+    var opt = (allowProxy && this.proxy) ? this.proxy : url.parse(reqUrl)
+    if (allowProxy && this.proxy) {
+      opt.path = reqUrl
+    }
+    opt.method = method
+    opt.headers = headers
+
+    return method !== 'GET' ? hh.request(opt) : hh.get(opt)
+  }
+
+  this._reqSkim = function(reqUrl, method, headers) {
+    return this._req(reqUrl, method, headers, this.proxySkim)
+  }
+
+  this._reqFat = function(reqUrl, method, headers) {
+    return this._req(reqUrl, method, headers, this.proxyFat)
+  }
+
   this.readSeq(this.seqFile)
 }
 
@@ -153,14 +188,7 @@ FullFat.prototype.onchange = function(er, change) {
 
 FullFat.prototype.getDoc = function(change) {
   var q = '?revs=true&att_encoding_info=true'
-  var opt = url.parse(this.skim + '/' + change.id + q)
-  opt.method = 'GET'
-  opt.headers = {
-    'user-agent': this.ua,
-    'connection': 'close'
-  }
-
-  var req = hh.get(opt)
+  var req = this._reqSkim(this.skim + '/' + change.id + q)
   req.on('error', this.emit.bind(this, 'error'))
   req.on('response', parse(this.ongetdoc.bind(this, change)))
 }
@@ -186,14 +214,7 @@ FullFat.prototype.unpublish = function(change) {
 
 FullFat.prototype.putDoc = function(change) {
   var q = '?revs=true&att_encoding_info=true'
-  var opt = url.parse(this.fat + '/' + change.id + q)
-
-  opt.method = 'GET'
-  opt.headers = {
-    'user-agent': this.ua,
-    'connection': 'close'
-  }
-  var req = hh.get(opt)
+  var req = this._reqFat(this.fat + '/' + change.id + q)
   req.on('error', this.emit.bind(this, 'error'))
   req.on('response', parse(this.onfatget.bind(this, change)))
 }
@@ -201,17 +222,15 @@ FullFat.prototype.putDoc = function(change) {
 FullFat.prototype.putDesign = function(change) {
   var doc = change.doc
   this.pause()
-  var opt = url.parse(this.fat + '/' + change.id + '?new_edits=false')
   var b = new Buffer(JSON.stringify(doc), 'utf8')
-  opt.method = 'PUT'
-  opt.headers = {
+  var headers = {
     'user-agent': this.ua,
     'content-type': 'application/json',
     'content-length': b.length,
     'connection': 'close'
   }
 
-  var req = hh.request(opt)
+  var req = this._reqFat(this.fat + '/' + change.id + '?new_edits=false', 'PUT', headers)
   req.on('response', parse(this.onputdesign.bind(this, change)))
   req.on('error', this.emit.bind(this, 'error'))
   req.end(b)
@@ -227,14 +246,7 @@ FullFat.prototype.onputdesign = function(change, er, data, res) {
 FullFat.prototype.delete = function(change) {
   var name = change.id
 
-  var opt = url.parse(this.fat + '/' + name)
-  opt.headers = {
-    'user-agent': this.ua,
-    'connection': 'close'
-  }
-  opt.method = 'HEAD'
-
-  var req = hh.request(opt)
+  var req = this._reqFat(this.fat + '/' + name, 'HEAD')
   req.on('response', this.ondeletehead.bind(this, change))
   req.on('error', this.emit.bind(this, 'error'))
   req.end()
@@ -246,13 +258,7 @@ FullFat.prototype.ondeletehead = function(change, res) {
     return this.afterDelete(change)
 
   var rev = res.headers.etag.replace(/^"|"$/g, '')
-  opt = url.parse(this.fat + '/' + change.id + '?rev=' + rev)
-  opt.headers = {
-    'user-agent': this.ua,
-    'connection': 'close'
-  }
-  opt.method = 'DELETE'
-  var req = hh.request(opt)
+  var req = this._reqFat(this.fat + '/' + change.id + '?rev=' + rev, 'DELETE')
   req.on('response', parse(this.ondelete.bind(this, change)))
   req.on('error', this.emit.bind(this, 'error'))
   req.end()
@@ -429,14 +435,6 @@ FullFat.prototype.put = function(change, did) {
 
   // put with new_edits=false to retain the same rev
   // this assumes that NOTHING else is writing to this database!
-  var p = url.parse(this.fat + '/' + f.name + '?new_edits=false')
-  p.method = 'PUT'
-  p.headers = {
-    'user-agent': this.ua,
-    'content-type': 'multipart/related;boundary="' + boundary + '"',
-    'connection': 'close'
-  }
-
   var doc = new Buffer(JSON.stringify(f), 'utf8')
   var len = 0
 
@@ -446,9 +444,12 @@ FullFat.prototype.put = function(change, did) {
           'content-length: ' + doc.length + '\r\n\r\n'
   bSize += b.length
 
-  p.headers['content-length'] = attSize + bSize + doc.length
+  var headers = {
+    'content-type': 'multipart/related;boundary="' + boundary + '"',
+    'content-length': attSize + bSize + doc.length
+  }
 
-  var req = hh.request(p)
+  var req = this._reqFat(this.fat + '/' + f.name + '?new_edits=false', 'PUT', headers)
   req.on('error', this.emit.bind(this, 'error'))
   req.write(b, 'ascii')
   req.write(doc)
@@ -529,19 +530,15 @@ FullFat.prototype.fetchAll = function(change, need, did) {
 
 FullFat.prototype.fetchOne = function(change, need, did, v) {
   var f = change.fat
-  var r = url.parse(change.doc.versions[v].dist.tarball)
+
+  var r = change.doc.versions[v].dist.tarball
   if (this.registry) {
-    var p = '/' + change.id + '/-/' + path.basename(r.pathname)
-    r = url.parse(this.registry + p)
+    var tarball = url.parse(r)
+    var p = '/' + change.id + '/-/' + path.basename(tarball.pathname)
+    r = this.registry + p
   }
 
-  r.method = 'GET'
-  r.headers = {
-    'user-agent': this.ua,
-    'connection': 'close'
-  }
-
-  var req = hh.request(r)
+  var req = this._req(r, 'GET', {}, this.proxyTarballs);
   req.on('error', this.emit.bind(this, 'error'))
   req.on('response', this.onattres.bind(this, change, need, did, v, r))
   req.end()
