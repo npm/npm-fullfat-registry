@@ -16,7 +16,7 @@ var rep = path.resolve(__dirname, 'fixtures', '_replicator.couch')
 
 test('kill file server', function (t) {
   try {
-    var pid = fs.readFileSync(nodePidFile)
+    var pid = fs.readFileSync(nodePidfile)
   } catch (er) {}
 
   if (pid) {
@@ -45,9 +45,9 @@ test('craigslist (for getting rid of couches)', function (t) {
   t.end()
 })
 
-test('delete all the files', function(t) {
+test('delete all the files', function (t) {
   var del = [nodePidfile, couchPidfile, logfile, _users, fat, skim, tmp, rep]
-  del.forEach(function(file) {
+  del.forEach(function (file) {
     rimraf.sync(file)
     t.pass('deleted ' + path.basename(file))
   })

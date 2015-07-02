@@ -4,14 +4,10 @@ var EE = require('events').EventEmitter
 var util = require('util')
 var url = require('url')
 var path = require('path')
-var tmp = path.resolve(__dirname, 'tmp')
 var mkdirp = require('mkdirp')
 var rimraf = require('rimraf')
-var assert = require('assert')
 var stream = require('stream')
-var util = require('util')
 var crypto = require('crypto')
-var once = require('once')
 var parse = require('parse-json-response')
 var hh = require('http-https')
 
@@ -23,7 +19,7 @@ util.inherits(FullFat, EE)
 
 module.exports = FullFat
 
-function FullFat(conf) {
+function FullFat (conf) {
   if (!conf.skim || !conf.fat) {
     throw new Error('skim and fat database urls required')
   }
@@ -69,27 +65,30 @@ function FullFat(conf) {
   this.readSeq(this.seqFile)
 }
 
-FullFat.prototype.readSeq = function(file) {
-  if (!this.seqFile)
+FullFat.prototype.readSeq = function (file) {
+  if (!this.seqFile) {
     process.nextTick(this.start.bind(this))
-  else
+  } else {
     fs.readFile(file, 'ascii', this.gotSeq.bind(this))
+  }
 }
 
-FullFat.prototype.gotSeq = function(er, data) {
-  if (er && er.code === 'ENOENT')
+FullFat.prototype.gotSeq = function (er, data) {
+  if (er && er.code === 'ENOENT') {
     data = '0'
-  else if (er)
+  } else if (er) {
     return this.emit('error', er)
+  }
 
   data = +data || 0
   this.since = data
   this.start()
 }
 
-FullFat.prototype.start = function() {
-  if (this.follow)
+FullFat.prototype.start = function () {
+  if (this.follow) {
     return this.emit('error', new Error('already started'))
+  }
 
   this.emit('start')
   this.follow = follow({
@@ -100,58 +99,62 @@ FullFat.prototype.start = function() {
   this.follow.on('error', this.emit.bind(this, 'error'))
 }
 
-FullFat.prototype._emit = function(ev, arg) {
+FullFat.prototype._emit = function (ev, arg) {
   // Don't emit errors while writing seq
   if (ev === 'error' && this.writingSeq) {
     this.error = arg
   } else {
-    EventEmitter.prototype.emit.apply(this, arguments)
+    EE.prototype.emit.apply(this, arguments)
   }
 }
 
-FullFat.prototype.writeSeq = function() {
+FullFat.prototype.writeSeq = function () {
   var seq = +this.since
   if (this.seqFile && !this.writingSeq && seq > 0) {
     var data = seq + '\n'
     var file = this.seqFile + '.' + seq
     this.writingSeq = true
-    fs.writeFile(file, data, 'ascii', function(writeEr) {
+    fs.writeFile(file, data, 'ascii', function (writeEr) {
       var er = this.error
-      if (er)
+      if (er) {
         this.emit('error', er)
-      else if (!writeEr) {
-        fs.rename(file, this.seqFile, function(mvEr) {
+      } else if (!writeEr) {
+        fs.rename(file, this.seqFile, function (mvEr) {
           this.writingSeq = false
           var er = this.error
-          if (er)
+          if (er) {
             this.emit('error', er)
-          else if (!mvEr)
+          } else if (!mvEr) {
             this.emit('sequence', seq)
+          }
         }.bind(this))
       }
     }.bind(this))
   }
 }
 
-FullFat.prototype.onchange = function(er, change) {
-  if (er)
+FullFat.prototype.onchange = function (er, change) {
+  if (er) {
     return this.emit('error', er)
+  }
 
-  if (!change.id)
+  if (!change.id) {
     return
+  }
 
   this.pause()
   this.since = change.seq
 
   this.emit('change', change)
 
-  if (change.deleted)
+  if (change.deleted) {
     this.delete(change)
-  else
+  } else {
     this.getDoc(change)
+  }
 }
 
-FullFat.prototype.getDoc = function(change) {
+FullFat.prototype.getDoc = function (change) {
   var q = '?revs=true&att_encoding_info=true'
   var opt = url.parse(this.skim + '/' + change.id + q)
   opt.method = 'GET'
@@ -165,26 +168,27 @@ FullFat.prototype.getDoc = function(change) {
   req.on('response', parse(this.ongetdoc.bind(this, change)))
 }
 
-FullFat.prototype.ongetdoc = function(change, er, data, res) {
-  if (er)
+FullFat.prototype.ongetdoc = function (change, er, data, res) {
+  if (er) {
     this.emit('error', er)
-  else {
+  } else {
     change.doc = data
-    if (change.id.match(/^_design\//))
+    if (change.id.match(/^_design\//)) {
       this.putDesign(change)
-    else if (data.time && data.time.unpublished)
+    } else if (data.time && data.time.unpublished) {
       this.unpublish(change)
-    else
+    } else {
       this.putDoc(change)
+    }
   }
 }
 
-FullFat.prototype.unpublish = function(change) {
+FullFat.prototype.unpublish = function (change) {
   change.fat = change.doc
   this.put(change, [])
 }
 
-FullFat.prototype.putDoc = function(change) {
+FullFat.prototype.putDoc = function (change) {
   var q = '?revs=true&att_encoding_info=true'
   var opt = url.parse(this.fat + '/' + change.id + q)
 
@@ -198,7 +202,7 @@ FullFat.prototype.putDoc = function(change) {
   req.on('response', parse(this.onfatget.bind(this, change)))
 }
 
-FullFat.prototype.putDesign = function(change) {
+FullFat.prototype.putDesign = function (change) {
   var doc = change.doc
   this.pause()
   var opt = url.parse(this.fat + '/' + change.id + '?new_edits=false')
@@ -217,14 +221,16 @@ FullFat.prototype.putDesign = function(change) {
   req.end(b)
 }
 
-FullFat.prototype.onputdesign = function(change, er, data, res) {
-  if (er)
+FullFat.prototype.onputdesign = function (change, er, data, res) {
+  if (er) {
     return this.emit('error', er)
+  }
+
   this.emit('putDesign', change, data)
   this.resume()
 }
 
-FullFat.prototype.delete = function(change) {
+FullFat.prototype.delete = function (change) {
   var name = change.id
 
   var opt = url.parse(this.fat + '/' + name)
@@ -240,13 +246,14 @@ FullFat.prototype.delete = function(change) {
   req.end()
 }
 
-FullFat.prototype.ondeletehead = function(change, res) {
+FullFat.prototype.ondeletehead = function (change, res) {
   // already gone?  totally fine.  move on, nothing to delete here.
-  if (res.statusCode === 404)
+  if (res.statusCode === 404) {
     return this.afterDelete(change)
+  }
 
   var rev = res.headers.etag.replace(/^"|"$/g, '')
-  opt = url.parse(this.fat + '/' + change.id + '?rev=' + rev)
+  var opt = url.parse(this.fat + '/' + change.id + '?rev=' + rev)
   opt.headers = {
     'user-agent': this.ua,
     'connection': 'close'
@@ -258,41 +265,44 @@ FullFat.prototype.ondeletehead = function(change, res) {
   req.end()
 }
 
-FullFat.prototype.ondelete = function(change, er, data, res) {
-  if (er && er.statusCode === 404)
+FullFat.prototype.ondelete = function (change, er, data, res) {
+  if (er && er.statusCode === 404) {
     this.afterDelete(change)
-  else if (er)
+  } else if (er) {
     this.emit('error', er)
-  else
+  } else {
     // scorch the earth! remove fully! repeat until 404!
     this.delete(change)
+  }
 }
 
-FullFat.prototype.afterDelete = function(change) {
+FullFat.prototype.afterDelete = function (change) {
   this.emit('delete', change)
   this.resume()
 }
 
-FullFat.prototype.onfatget = function(change, er, f, res) {
-  if (er && er.statusCode !== 404)
+FullFat.prototype.onfatget = function (change, er, f, res) {
+  if (er && er.statusCode !== 404) {
     return this.emit('error', er)
+  }
 
-  if (er)
+  if (er) {
     f = JSON.parse(JSON.stringify(change.doc))
+  }
 
   f._attachments = f._attachments || {}
   change.fat = f
   this.merge(change)
 }
 
-
-FullFat.prototype.merge = function(change) {
+FullFat.prototype.merge = function (change) {
   var s = change.doc
   var f = change.fat
 
   // if no versions in the skim record, then nothing to fetch
-  if (!s.versions)
+  if (!s.versions) {
     return this.resume()
+  }
 
   // Only fetch attachments if it's on the list.
   var pass = true
@@ -300,10 +310,11 @@ FullFat.prototype.merge = function(change) {
     pass = false
     for (var i = 0; !pass && i < this.whitelist.length; i++) {
       var w = this.whitelist[i]
-      if (typeof w === 'string')
+      if (typeof w === 'string') {
         pass = w === change.id
-      else
+      } else {
         pass = w.exec(change.id)
+      }
     }
     if (!pass) {
       f._attachments = {}
@@ -313,8 +324,10 @@ FullFat.prototype.merge = function(change) {
 
   var need = []
   var changed = false
-  for (var v in s.versions) {
-    var tgz = s.versions[v].dist.tarball
+  var tgz
+  var v
+  for (v in s.versions) {
+    tgz = s.versions[v].dist.tarball
     var att = path.basename(url.parse(tgz).pathname)
     var ver = s.versions[v]
     f.versions = f.versions || {}
@@ -330,16 +343,16 @@ FullFat.prototype.merge = function(change) {
   }
 
   // remove any versions that s removes, or which lack attachments
-  for (var v in f.versions) {
-    if (!s.versions[v])
+  for (v in f.versions) {
+    if (!s.versions[v]) {
       delete f.versions[v]
+    }
   }
-
 
   for (var a in f._attachments) {
     var found = false
-    for (var v in f.versions) {
-      var tgz = f.versions[v].dist.tarball
+    for (v in f.versions) {
+      tgz = f.versions[v].dist.tarball
       var b = path.basename(url.parse(tgz).pathname)
       if (b === a) {
         found = true
@@ -354,9 +367,9 @@ FullFat.prototype.merge = function(change) {
 
   for (var k in s) {
     if (k !== '_attachments' && k !== 'versions') {
-      if (changed)
+      if (changed) {
         f[k] = s[k]
-      else if (JSON.stringify(f[k]) !== JSON.stringify(s[k])) {
+      } else if (JSON.stringify(f[k]) !== JSON.stringify(s[k])) {
         f[k] = s[k]
         changed = true
       }
@@ -365,13 +378,14 @@ FullFat.prototype.merge = function(change) {
 
   changed = readmeTrim(f) || changed
 
-  if (!changed)
+  if (!changed) {
     this.resume()
-  else
+  } else {
     this.fetchAll(change, need, [])
+  }
 }
 
-FullFat.prototype.put = function(change, did) {
+FullFat.prototype.put = function (change, did) {
   var f = change.fat
   change.did = did
   // at this point, all the attachments have been fetched into
@@ -388,33 +402,36 @@ FullFat.prototype.put = function(change, did) {
   // It's important that we do everything in enumeration order,
   // because couchdb is a jerk, and ignores disposition headers.
   // Still include the filenames, though, so at least we dtrt.
-  did.forEach(function(att) {
+  did.forEach(function (att) {
     atts[att.name] = {
       length: att.length,
       follows: true
     }
 
-    if (att.type)
+    if (att.type) {
       atts[att.name].type = att.type
+    }
   })
 
   var send = []
   Object.keys(atts).forEach(function (name) {
     var att = atts[name]
 
-    if (att.follows !== true)
+    if (att.follows !== true) {
       return
+    }
 
     send.push([name, att])
     attSize += att.length
 
     var b = '\r\n--' + boundary + '\r\n' +
-            'content-length: ' + att.length + '\r\n' +
-            'content-disposition: attachment; filename=' +
-            JSON.stringify(name) + '\r\n'
+      'content-length: ' + att.length + '\r\n' +
+      'content-disposition: attachment; filename=' +
+      JSON.stringify(name) + '\r\n'
 
-    if (att.type)
+    if (att.type) {
       b += 'content-type: ' + att.type + '\r\n'
+    }
 
     b += '\r\n'
 
@@ -438,12 +455,11 @@ FullFat.prototype.put = function(change, did) {
   }
 
   var doc = new Buffer(JSON.stringify(f), 'utf8')
-  var len = 0
 
   // now, for the document
-  var b = '--' + boundary + '\r\n' +
-          'content-type: application/json\r\n' +
-          'content-length: ' + doc.length + '\r\n\r\n'
+  b = '--' + boundary + '\r\n' +
+    'content-type: application/json\r\n' +
+    'content-length: ' + doc.length + '\r\n\r\n'
   bSize += b.length
 
   p.headers['content-length'] = attSize + bSize + doc.length
@@ -456,7 +472,7 @@ FullFat.prototype.put = function(change, did) {
   req.on('response', parse(this.onputres.bind(this, change)))
 }
 
-FullFat.prototype.putAttachments = function(req, change, boundaries, send) {
+FullFat.prototype.putAttachments = function (req, change, boundaries, send) {
   // send is the ordered list of [[name, attachment object],...]
   var b = boundaries.shift()
   var ns = send.shift()
@@ -472,7 +488,7 @@ FullFat.prototype.putAttachments = function(req, change, boundaries, send) {
   var file = path.join(this.tmp, change.id + '-' + change.seq, name)
   var fstr = fs.createReadStream(file)
 
-  fstr.on('end', function() {
+  fstr.on('end', function () {
     this.emit('upload', {
       change: change,
       name: name
@@ -484,10 +500,10 @@ FullFat.prototype.putAttachments = function(req, change, boundaries, send) {
   fstr.pipe(req, { end: false })
 }
 
-FullFat.prototype.onputres = function(change, er, data, res) {
-
-  if (!change.id)
+FullFat.prototype.onputres = function (change, er, data, res) {
+  if (!change.id) {
     throw new Error('wtf?')
+  }
 
   // In some oddball cases, it looks like CouchDB will report stubs that
   // it doesn't in fact have.  It's possible that this is due to old bad
@@ -497,38 +513,36 @@ FullFat.prototype.onputres = function(change, er, data, res) {
   // the attachments that ARE there, and fills in the blanks.
   // We do that by faking the onfatget callback with a 404 error.
   if (er && er.statusCode === 412 &&
-      0 === er.message.indexOf('{"error":"missing_stub"') &&
-      !change.didFake404){
+    er.message.indexOf('{"error":"missing_stub"') === 0 &&
+    !change.didFake404) {
     change.didFake404 = true
     this.onfatget(change, { statusCode: 404 }, {}, {})
-  } else if (er)
+  } else if (er) {
     this.emit('error', er)
-  else {
+  } else {
     this.emit('put', change, data)
     // Just a best-effort cleanup.  No big deal, really.
-    rimraf(this.tmp + '/' + change.id + '-' + change.seq, function() {})
+    rimraf(this.tmp + '/' + change.id + '-' + change.seq, function () {})
     this.resume()
   }
 }
 
-FullFat.prototype.fetchAll = function(change, need, did) {
-  var f = change.fat
+FullFat.prototype.fetchAll = function (change, need, did) {
   var tmp = path.resolve(this.tmp, change.id + '-' + change.seq)
   var len = need.length
-  if (!len)
+  if (!len) {
     return this.put(change, did)
+  }
 
-  var errState = null
-
-  mkdirp(tmp, function(er) {
-    if (er)
+  mkdirp(tmp, function (er) {
+    if (er) {
       return this.emit('error', er)
+    }
     need.forEach(this.fetchOne.bind(this, change, need, did))
   }.bind(this))
 }
 
-FullFat.prototype.fetchOne = function(change, need, did, v) {
-  var f = change.fat
+FullFat.prototype.fetchOne = function (change, need, did, v) {
   var r = url.parse(change.doc.versions[v].dist.tarball)
   if (this.registry) {
     var p = '/' + change.id + '/-/' + path.basename(r.pathname)
@@ -547,7 +561,7 @@ FullFat.prototype.fetchOne = function(change, need, did, v) {
   req.end()
 }
 
-FullFat.prototype.onattres = function(change, need, did, v, r, res) {
+FullFat.prototype.onattres = function (change, need, did, v, r, res) {
   var f = change.fat
   var att = r.href
   var sum = f.versions[v].dist.shasum
@@ -558,20 +572,24 @@ FullFat.prototype.onattres = function(change, need, did, v, r, res) {
   // If the size matches content-length, get the md5
   // If the md5 matches content-md5, then don't bother downloading!
 
-  function skip() {
-    rimraf(file, function() {})
+  function skip () {
+    rimraf(file, function () {})
     delete f.versions[v]
-    if (f._attachments)
+    if (f._attachments) {
       delete f._attachments[file]
+    }
     need.splice(need.indexOf(v), 1)
     maybeDone(null)
   }
 
-  var maybeDone = function maybeDone(a) {
-    if (a)
+  var maybeDone = function (a) {
+    if (a) {
       this.emit('download', a)
-    if (need.length === did.length)
+    }
+
+    if (need.length === did.length) {
       this.put(change, did)
+    }
   }.bind(this)
 
   // if the attachment can't be found, then skip that version
@@ -581,10 +599,11 @@ FullFat.prototype.onattres = function(change, need, did, v, r, res) {
     var er = new Error('Error fetching attachment: ' + att)
     er.statusCode = res.statusCode
     er.code = 'attachment-fetch-fail'
-    if (this.missingLog)
+    if (this.missingLog) {
       return fs.appendFile(this.missingLog, att + '\n', skip)
-    else
+    } else {
       return this.emit('error', er)
+    }
   }
 
   var fstr = fs.createWriteStream(file)
@@ -594,11 +613,12 @@ FullFat.prototype.onattres = function(change, need, did, v, r, res) {
   var shaOk = false
   var errState = null
 
-  sha.on('data', function(c) {
+  sha.on('data', function (c) {
     c = c.toString('hex')
-    if (c === sum)
+    if (c === sum) {
       shaOk = true
-  }.bind(this))
+    }
+  })
 
   if (!res.headers['content-length']) {
     var counter = new Counter()
@@ -608,7 +628,7 @@ FullFat.prototype.onattres = function(change, need, did, v, r, res) {
   res.pipe(sha)
   res.pipe(fstr)
 
-  fstr.on('error', function(er) {
+  fstr.on('error', function (er) {
     er.change = change
     er.version = v
     er.path = file
@@ -616,7 +636,7 @@ FullFat.prototype.onattres = function(change, need, did, v, r, res) {
     this.emit('error', errState = errState || er)
   }.bind(this))
 
-  fstr.on('close', function() {
+  fstr.on('close', function () {
     if (errState || !shaOk) {
       // something didn't work, but the error was squashed
       // take that as a signal to just delete this version
@@ -627,13 +647,16 @@ FullFat.prototype.onattres = function(change, need, did, v, r, res) {
     // the _show/pkg function when going through the rewrites, anyway,
     // but this url will work if the couch itself is accessible.
     var newatt = this.publicFat + '/' + change.id +
-                 '/' + change.id + '-' + v + '.tgz'
+      '/' + change.id + '-' + v + '.tgz'
     f.versions[v].dist.tarball = newatt
 
-    if (res.headers['content-length'])
-      var cl = +res.headers['content-length']
-    else
-      var cl = counter.count
+    var cl
+
+    if (res.headers['content-length']) {
+      cl = +res.headers['content-length']
+    } else {
+      cl = counter.count
+    }
 
     var a = {
       change: change,
@@ -648,28 +671,31 @@ FullFat.prototype.onattres = function(change, need, did, v, r, res) {
   }.bind(this))
 }
 
-FullFat.prototype.destroy = function() {
-  if (this.follow)
+FullFat.prototype.destroy = function () {
+  if (this.follow) {
     this.follow.die()
+  }
 }
 
-FullFat.prototype.pause = function() {
-  if (this.follow)
+FullFat.prototype.pause = function () {
+  if (this.follow) {
     this.follow.pause()
+  }
 }
 
-FullFat.prototype.resume = function() {
+FullFat.prototype.resume = function () {
   this.writeSeq()
-  if (this.follow)
+  if (this.follow) {
     this.follow.resume()
+  }
 }
 
 util.inherits(Counter, stream.Writable)
-function Counter(options) {
+function Counter (options) {
   stream.Writable.call(this, options)
   this.count = 0
 }
-Counter.prototype._write = function(chunk, encoding, cb) {
+Counter.prototype._write = function (chunk, encoding, cb) {
   this.count += chunk.length
   cb()
 }
