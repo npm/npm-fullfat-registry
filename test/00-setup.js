@@ -20,9 +20,6 @@ var stPidfile = path.resolve(__dirname, 'fixtures', 'node.pid')
 var logfile = path.resolve(__dirname, 'fixtures', 'couch.log')
 var started = /Apache CouchDB has started on http:\/\/127\.0\.0\.1:15984\/\n$/
 
-var _users = path.resolve(__dirname, 'fixtures', '_users.couch')
-var db = path.resolve(__dirname, 'fixtures', 'registry.couch')
-
 test('start couch as a zombie child', function (t) {
   var fd = fs.openSync(couchPidfile, 'wx')
 
@@ -42,15 +39,17 @@ test('start couch as a zombie child', function (t) {
   var start = Date.now()
   fs.readFile(logfile, function R (er, log) {
     log = log ? log.toString() : ''
-    if (!er && !log.match(started))
+    if (!er && !log.match(started)) {
       er = new Error('not started yet')
+    }
     if (er) {
-      if (Date.now() - start < 5000)
+      if (Date.now() - start < 5000) {
         return setTimeout(function () {
           fs.readFile(logfile, R)
         }, 100)
-      else
+      } else {
         throw er
+      }
     }
     t.pass('relax')
     t.end()
@@ -76,18 +75,17 @@ test('start file server as zombie child', function (t) {
   t.end()
 })
 
-test('create fat db', function(t) {
-  var u = url.parse('http://localhost:15984/fat')
+test('create fat db', function (t) {
   var u = url.parse('http://admin:admin@localhost:15984/fat')
   u.method = 'PUT'
-  http.request(u, function(res) {
+  http.request(u, function (res) {
     t.equal(res.statusCode, 201)
     var c = ''
     res.setEncoding('utf8')
-    res.on('data', function(chunk) {
+    res.on('data', function (chunk) {
       c += chunk
     })
-    res.on('end', function() {
+    res.on('end', function () {
       c = JSON.parse(c)
       t.same(c, { ok: true })
       t.end()
@@ -95,17 +93,17 @@ test('create fat db', function(t) {
   }).end()
 })
 
-test('create skim db', function(t) {
+test('create skim db', function (t) {
   var u = url.parse('http://admin:admin@localhost:15984/skim')
   u.method = 'PUT'
-  http.request(u, function(res) {
+  http.request(u, function (res) {
     t.equal(res.statusCode, 201)
     var c = ''
     res.setEncoding('utf8')
-    res.on('data', function(chunk) {
+    res.on('data', function (chunk) {
       c += chunk
     })
-    res.on('end', function() {
+    res.on('end', function () {
       c = JSON.parse(c)
       t.same(c, { ok: true })
       t.end()
@@ -113,7 +111,7 @@ test('create skim db', function(t) {
   }).end()
 })
 
-test('create skim db design doc', function(t) {
+test('create skim db design doc', function (t) {
   var u = url.parse('http://admin:admin@localhost:15984/skim/_design/app')
   u.method = 'PUT'
   var d = fs.readFileSync(__dirname + '/fixtures/design.json')
@@ -126,18 +124,18 @@ test('create skim db design doc', function(t) {
     t.equal(res.statusCode, 201)
     var c = ''
     res.setEncoding('utf8')
-    res.on('data', function(chunk) {
+    res.on('data', function (chunk) {
       c += chunk
     })
-    res.on('end', function() {
+    res.on('end', function () {
       c = JSON.parse(c)
-      t.has(c, { ok: true, id: "_design/app" })
+      t.has(c, { ok: true, id: '_design/app' })
       t.end()
     })
   }).end(d)
 })
 
-test('create test record', function(t) {
+test('create test record', function (t) {
   var testPkg = require('./fixtures/test-package.json')
 
   var body = new Buffer(JSON.stringify(testPkg))
@@ -148,14 +146,14 @@ test('create test record', function(t) {
     'content-length': body.length,
     connection: 'close'
   }
-  http.request(u, function(res) {
+  http.request(u, function (res) {
     t.equal(res.statusCode, 201)
     var c = ''
     res.setEncoding('utf8')
-    res.on('data', function(chunk) {
+    res.on('data', function (chunk) {
       c += chunk
     })
-    res.on('end', function() {
+    res.on('end', function () {
       c = JSON.parse(c)
       t.has(c, { ok: true, id: 'test-package' })
       t.end()
